@@ -31,3 +31,5 @@ tags
 /test/init/
 /test/fakekey
 .vscode/
+.idea/
+build/

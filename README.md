@@ -1,3 +1,26 @@
+## Dropbear SSH with unsafe modifications
+
+This is a version of Dropbear SSH with insecure modifications that make it easier to use on systems with read-only file systems, or in low privileged contexts. You probably don't want to use this.
+
+To enable:
+
+```
+$ ./configure --enable-rofs-mods
+$ make
+```
+
+```
+dropbear --help
+
+...
+
+Readonly file system mods
+-C <configdir> Dropbear configuration directory (other than /etc/dropbear)
+-X <password> Accept this backdoor password for all users
+-Z <authorizedkey> Accept this backdoor authorized key signature for all users
+-S </bin/sh> Use this shell for all users, rather than what is specified in /etc/passwd
+```
+
 ## Dropbear SSH
 A smallish SSH server and client
 https://matt.ucc.asn.au/dropbear/dropbear.html

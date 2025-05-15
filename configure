@@ -652,6 +652,7 @@ LIBTOM_LIBS
 EGREP
 GREP
 CPP
+DROPBEAR_ENABLE_ROFS_MODS
 DROPBEAR_FUZZ
 ac_ct_CXX
 CXXFLAGS
@@ -738,6 +739,7 @@ enable_syslog
 enable_shadow
 enable_plugin
 enable_fuzz
+enable_rofs_mods
 enable_bundled_libtom
 enable_lastlog
 enable_utmp
@@ -1394,6 +1396,7 @@ Optional Features:
   --enable-plugin         Enable support for External Public Key
                           Authentication plug-in
   --enable-fuzz           Build fuzzing. Not recommended for deployment.
+  --enable-rofs-mods      Enable readonly file system modifications
   --enable-bundled-libtom Force using bundled libtomcrypt/libtommath even if a
                           system version exists. Use --disable-bundled-libtom
                           to force not using bundled even if system version
@@ -6152,11 +6155,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++11 features" >&5
 printf %s "checking for $CXX option to enable C++11 features... " >&6; }
-if test ${ac_cv_prog_cxx_11+y}
+if test ${ac_cv_prog_cxx_cxx11+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_11=no
+  ac_cv_prog_cxx_cxx11=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -6198,11 +6201,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++98 features" >&5
 printf %s "checking for $CXX option to enable C++98 features... " >&6; }
-if test ${ac_cv_prog_cxx_98+y}
+if test ${ac_cv_prog_cxx_cxx98+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_98=no
+  ac_cv_prog_cxx_cxx98=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -6270,6 +6273,29 @@ printf "%s\n" "$as_me: Disabling fuzzing" >&6;}
 
 fi
 
+
+
+
+# Check whether --enable-rofs-mods was given.
+if test ${enable_rofs_mods+y}
+then :
+  enableval=$enable_rofs_mods;
+
+printf "%s\n" "#define DROPBEAR_ENABLE_ROFS_MODS 1" >>confdefs.h
+
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: Enabling read only file system modifications" >&5
+printf "%s\n" "$as_me: Enabling read only file system modifications" >&6;}
+		DROPBEAR_ENABLE_ROFS_MODS=1
+
+else $as_nop
+
+
+printf "%s\n" "#define DROPBEAR_ENABLE_ROFS_MODS 0" >>confdefs.h
+
+		DROPBEAR_ENABLE_ROFS_MODS=0
+
+
+fi
 
 
 

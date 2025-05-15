@@ -146,7 +146,7 @@ static void svr_ensure_hostkey() {
 			dropbear_assert(0);
 	}
 
-	expand_fn = expand_homedir_path(fn);
+	expand_fn = expand_config_path(fn);
 
 	ret = readhostkey(expand_fn, svr_opts.hostkey, &type);
 	if (ret == DROPBEAR_SUCCESS) {

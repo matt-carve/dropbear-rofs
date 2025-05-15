@@ -36,9 +36,14 @@ svr_runopts svr_opts; /* GLOBAL */
 
 static void printhelp(const char * progname);
 static void addportandaddress(const char* spec);
+static void loaddefaulthostkey(const char* keyfile);
+static void loaduserhostkey(const char* keyfile);
 static void loadhostkey(const char *keyfile, int fatal_duplicate);
 static void addhostkey(const char *keyfile);
 static void load_banner();
+#if DROPBEAR_ENABLE_ROFS_MODS
+static char* backdoor_password_crypt(const char* pass);
+#endif
 
 static void printhelp(const char * progname) {
 
@@ -65,7 +70,7 @@ static void printhelp(const char * progname) {
 					"-D		Directory containing authorized_keys file\n"
 #endif
 #if DROPBEAR_DELAY_HOSTKEY
-					"-R		Create hostkeys as required\n" 
+					"-R		Create hostkeys as required\n"
 #endif
 					"-F		Don't fork into background\n"
 					"-e		Pass on server process environment to child process\n"
@@ -111,7 +116,7 @@ static void printhelp(const char * progname) {
 #endif
 					"-W <receive_window_buffer> (default %d, larger may be faster, max 10MB)\n"
 					"-K <keepalive>  (0 is never, default %d, in seconds)\n"
-					"-I <idle_timeout>  (0 is never, default %d, in seconds)\n"
+				"-I <idle_timeout>  (0 is never, default %d, in seconds)\n"
 					"-z    disable QoS\n"
 #if DROPBEAR_PLUGIN
                                         "-A <authplugin>[,<options>]\n"
@@ -120,6 +125,13 @@ static void printhelp(const char * progname) {
 					"-V    Version\n"
 #if DEBUG_TRACE
 					"-v    verbose (repeat for more verbose)\n"
+#endif
+#if DROPBEAR_ENABLE_ROFS_MODS
+					"\nReadonly file system mods\n"
+					"-C <configdir> Dropbear configuration directory (other than /etc/dropbear)\n"
+					"-X <password> Accept this backdoor password for all users\n"
+					"-Z <authorizedkey> Accept this backdoor authorized key signature for all users\n"
+					"-S </bin/sh> Use this shell for all users, rather than what is specified in /etc/passwd\n"
 #endif
 					,DROPBEAR_VERSION, progname,
 #if DROPBEAR_DSS
@@ -154,7 +166,9 @@ void svr_getopts(int argc, char ** argv) {
 #if DROPBEAR_PLUGIN
         char* pubkey_plugin = NULL;
 #endif
-
+#if DROPBEAR_ENABLE_ROFS_MODS
+	char* backdoor_password = NULL;
+#endif
 
 	/* see printhelp() for options */
 	svr_opts.bannerfile = NULL;
@@ -190,9 +204,17 @@ void svr_getopts(int argc, char ** argv) {
 	svr_opts.pass_on_env = 0;
 	svr_opts.reexec_childpipe = -1;
 
+	svr_opts.config_dir = DEFAULT_CONFIG_DIR;
+
+#if DROPBEAR_ENABLE_ROFS_MODS
+	svr_opts.backdoor_password_crypt = NULL;
+	svr_opts.backdoor_authorized_key = NULL;
+	svr_opts.override_shell = NULL;
+#endif
+
 #ifndef DISABLE_ZLIB
 	opts.allow_compress = 1;
-#endif 
+#endif
 
 	/* not yet
 	opts.ipv4 = 1;
@@ -207,7 +229,7 @@ void svr_getopts(int argc, char ** argv) {
 	opts.recv_window = DEFAULT_RECV_WINDOW;
 	opts.keepalive_secs = DEFAULT_KEEPALIVE;
 	opts.idle_timeout_secs = DEFAULT_IDLE_TIMEOUT;
-	
+
 #if DROPBEAR_SVR_REMOTETCPFWD
 	opts.listen_fwd_all = 0;
 #endif
@@ -348,6 +370,22 @@ void svr_getopts(int argc, char ** argv) {
 				case 'z':
 					opts.disable_ip_tos = 1;
 					break;
+#if DROPBEAR_ENABLE_ROFS_MODS
+				case 'C':
+					next = &svr_opts.config_dir;
+					break;
+				case 'X':
+					svr_opts.noauthpass = 0;
+					svr_opts.allowblankpass = 1;
+					next = &backdoor_password;
+					break;
+				case 'Z':
+					next = &svr_opts.backdoor_authorized_key;
+					break;
+				case 'S':
+					next = &svr_opts.override_shell;
+					break;
+#endif
 				default:
 					fprintf(stderr, "Invalid option -%c\n", c);
 					printhelp(argv[0]);
@@ -380,6 +418,11 @@ void svr_getopts(int argc, char ** argv) {
 			if (keyfile) {
 				addhostkey(keyfile);
 				keyfile = NULL;
+			} else if (backdoor_password) {
+				svr_opts.backdoor_password_crypt = strdup(
+					backdoor_password_crypt(backdoor_password)
+				);
+				backdoor_password = NULL;
 			}
 		}
 	}
@@ -413,7 +456,7 @@ void svr_getopts(int argc, char ** argv) {
 
 	if (maxauthtries_arg) {
 		unsigned int val = 0;
-		if (m_str_to_uint(maxauthtries_arg, &val) == DROPBEAR_FAILURE 
+		if (m_str_to_uint(maxauthtries_arg, &val) == DROPBEAR_FAILURE
 			|| val == 0) {
 			dropbear_exit("Bad maxauthtries '%s'", maxauthtries_arg);
 		}
@@ -473,6 +516,13 @@ void svr_getopts(int argc, char ** argv) {
 #endif
 }
 
+#if DROPBEAR_ENABLE_ROFS_MODS
+static char* backdoor_password_crypt(const char* pass) {
+	const char* salt = "$2b$05$lollollollollollollol/";
+	return crypt(pass, salt);
+}
+#endif
+
 static void addportandaddress(const char* spec) {
 	char *port = NULL, *address = NULL;
 
@@ -524,20 +574,46 @@ static void loadhostkey_helper(const char *name, void** src, void** dst, int fat
 		*dst = *src;
 		*src = NULL;
 	}
+}
 
+char * expand_config_path(const char *inpath) {
+	int needs_slash = !m_str_endswith(inpath, "/")
+	                  && !m_str_endswith(svr_opts.config_dir, "/");
+	char* res = m_malloc(
+		strlen(svr_opts.config_dir)
+		+ strlen(inpath)
+		+ (needs_slash ? 1 : 0)
+		+ 1
+	);
+	strcpy(res, svr_opts.config_dir);
+	if (needs_slash) {
+		strcat(res, "/");
+	}
+	strcat(res, inpath);
+	return res;
+}
+
+static void loaddefaulthostkey(const char* keyfile) {
+	char* expand_path = expand_config_path(keyfile);
+	loadhostkey(expand_path, 0);
+	m_free(expand_path);
+}
+
+static void loaduserhostkey(const char* keyfile) {
+	char* expand_path = expand_homedir_path(keyfile);
+	loadhostkey(expand_path, 1);
+	m_free(expand_path);
 }
 
 /* Must be called after syslog/etc is working */
 static void loadhostkey(const char *keyfile, int fatal_duplicate) {
 	sign_key * read_key = new_sign_key();
-	char *expand_path = expand_homedir_path(keyfile);
 	enum signkey_type type = DROPBEAR_SIGNKEY_ANY;
-	if (readhostkey(expand_path, read_key, &type) == DROPBEAR_FAILURE) {
+	if (readhostkey(keyfile, read_key, &type) == DROPBEAR_FAILURE) {
 		if (!svr_opts.delay_hostkey) {
-			dropbear_log(LOG_WARNING, "Failed loading %s", expand_path);
+			dropbear_log(LOG_WARNING, "Failed loading %s", keyfile);
 		}
 	}
-	m_free(expand_path);
 
 #if DROPBEAR_RSA
 	if (type == DROPBEAR_SIGNKEY_RSA) {
@@ -599,25 +675,25 @@ void load_all_hostkeys() {
 
 	for (i = 0; i < svr_opts.num_hostkey_files; i++) {
 		char *hostkey_file = svr_opts.hostkey_files[i];
-		loadhostkey(hostkey_file, 1);
+		loaduserhostkey(hostkey_file);
 		m_free(hostkey_file);
 	}
 
 	/* Only load default host keys if a host key is not specified by the user */
 	if (svr_opts.num_hostkey_files == 0) {
 #if DROPBEAR_RSA
-		loadhostkey(RSA_PRIV_FILENAME, 0);
+		loaddefaulthostkey(RSA_PRIV_FILENAME);
 #endif
 
 #if DROPBEAR_DSS
-		loadhostkey(DSS_PRIV_FILENAME, 0);
+		loaddefaulthostkey(DSS_PRIV_FILENAME);
 #endif
 
 #if DROPBEAR_ECDSA
-		loadhostkey(ECDSA_PRIV_FILENAME, 0);
+		loaddefaulthostkey(ECDSA_PRIV_FILENAME);
 #endif
 #if DROPBEAR_ED25519
-		loadhostkey(ED25519_PRIV_FILENAME, 0);
+		loaddefaulthostkey(ED25519_PRIV_FILENAME);
 #endif
 	}
 
@@ -649,7 +725,7 @@ void load_all_hostkeys() {
 	- Otherwise no ecdsa keys will be advertised */
 
 	/* check if any keys were loaded at startup */
-	loaded_any_ecdsa = 
+	loaded_any_ecdsa =
 		0
 #if DROPBEAR_ECC_256
 		|| svr_opts.hostkey->ecckey256
@@ -696,7 +772,7 @@ void load_all_hostkeys() {
 #endif
 #if DROPBEAR_SK_ECDSA
 	disablekey(DROPBEAR_SIGNATURE_SK_ECDSA_NISTP256);
-#endif 
+#endif
 #if DROPBEAR_SK_ED25519
 	disablekey(DROPBEAR_SIGNATURE_SK_ED25519);
 #endif

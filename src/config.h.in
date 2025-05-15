@@ -54,6 +54,9 @@
 /* Use zlib */
 #undef DISABLE_ZLIB
 
+/* Enable readonly file system modifications */
+#undef DROPBEAR_ENABLE_ROFS_MODS
+
 /* Fuzzing */
 #undef DROPBEAR_FUZZ
 

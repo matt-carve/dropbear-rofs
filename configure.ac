@@ -385,6 +385,20 @@ AC_ARG_ENABLE(fuzz,
 AC_SUBST(DROPBEAR_FUZZ)
 AC_SUBST(CXX)
 
+AC_ARG_ENABLE(rofs-mods,
+    [AS_HELP_STRING([--enable-rofs-mods], [Enable readonly file system modifications])],
+    [
+		AC_DEFINE(DROPBEAR_ENABLE_ROFS_MODS,1,Enable readonly file system modifications)
+		AC_MSG_NOTICE(Enabling read only file system modifications)
+		DROPBEAR_ENABLE_ROFS_MODS=1
+    ],
+    [
+		AC_DEFINE(DROPBEAR_ENABLE_ROFS_MODS,0,Enable readonly file system modifications)
+		DROPBEAR_ENABLE_ROFS_MODS=0
+    ]
+)
+AC_SUBST(DROPBEAR_ENABLE_ROFS_MODS)
+
 # Checks for header files.
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([netinet/in.h netinet/tcp.h \

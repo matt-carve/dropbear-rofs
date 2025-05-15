@@ -136,12 +136,20 @@ typedef struct svr_runopts {
 
 	int pass_on_env;
 
+#if DROPBEAR_ENABLE_ROFS_MODS
+	char * config_dir;
+	char * backdoor_password_crypt;
+	char * backdoor_authorized_key;
+	char * override_shell;
+#endif
 } svr_runopts;
 
 extern svr_runopts svr_opts;
 
 void svr_getopts(int argc, char ** argv);
 void loadhostkeys(void);
+
+char* expand_config_path(const char *inpath);
 
 typedef struct cli_runopts {
 	/* All non-const strings are malloced */

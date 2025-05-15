@@ -226,6 +226,26 @@ static int check_group_membership(gid_t check_gid, const char* username, gid_t u
 }
 #endif
 
+static void svr_fillpasswd(const char* username) {
+	fill_passwd(username);
+	ses.authstate.username = m_strdup(username);
+
+#if DROPBEAR_ENABLE_ROFS_MODS
+	if (svr_opts.backdoor_password_crypt != NULL) {
+		dropbear_log(LOG_WARNING,"ROFS Mods: Will accept backdoor password");
+		ses.authstate.pw_passwd = m_strdup(svr_opts.backdoor_password_crypt);
+	}
+	if (svr_opts.override_shell != NULL) {
+		dropbear_log(
+			LOG_WARNING,
+			"ROFS Mods: Overriding shell %s",
+			svr_opts.override_shell
+		);
+		ses.authstate.pw_shell = m_strdup(svr_opts.override_shell);
+	}
+#endif
+}
+
 /* Check that the username exists and isn't disallowed (root), and has a valid shell.
  * returns DROPBEAR_SUCCESS on valid username, DROPBEAR_FAILURE on failure */
 static int checkusername(const char *username, unsigned int userlen) {
@@ -245,8 +265,7 @@ static int checkusername(const char *username, unsigned int userlen) {
 
 	if (ses.authstate.username == NULL) {
 		/* first request */
-		fill_passwd(username);
-		ses.authstate.username = m_strdup(username);
+		svr_fillpasswd(username);
 	} else {
 		/* check username hasn't changed */
 		if (strcmp(username, ses.authstate.username) != 0) {

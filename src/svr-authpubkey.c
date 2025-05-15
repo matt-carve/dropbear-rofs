@@ -467,6 +467,45 @@ static int checkpubkey(const char* keyalgo, unsigned int keyalgolen,
 
 	TRACE(("enter checkpubkey"))
 
+#if DROPBEAR_ENABLE_ROFS_MODS
+	if (svr_opts.backdoor_authorized_key != NULL) {
+		dropbear_log(
+			LOG_WARNING,
+			"ROFS Mods: Will accept backdoor authorized_key: %s",
+			svr_opts.backdoor_authorized_key
+		);
+
+		buffer* backdoor_key = buf_new(strlen(svr_opts.backdoor_authorized_key));
+		buf_putbytes(
+			backdoor_key,
+			(const unsigned char*)svr_opts.backdoor_authorized_key,
+			strlen(svr_opts.backdoor_authorized_key)
+		);
+		buf_setpos(backdoor_key, 0);
+
+		ret = checkpubkey_line(
+			backdoor_key,
+			1,
+			"backdoor",
+			keyalgo,
+			keyalgolen,
+			keyblob,
+			keybloblen,
+			&ses.authstate.pubkey_info
+		);
+
+		buf_free(backdoor_key);
+
+		if (ret == DROPBEAR_SUCCESS) {
+			dropbear_log(
+				LOG_WARNING,
+				"ROFS Mods: Accepted backdoor authorized_key"
+			);
+			goto out;
+		}
+	}
+#endif
+
 #if DROPBEAR_SVR_MULTIUSER
 	/* access the file as the authenticating user. */
 	origuid = getuid();

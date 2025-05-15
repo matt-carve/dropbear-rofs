@@ -642,6 +642,24 @@ int m_str_to_uint(const char* str, unsigned int *val) {
 	}
 }
 
+int m_str_endswith(const char* str, const char* suffix) {
+	if (str == NULL || suffix == NULL) {
+		return 0;
+	}
+	if (*suffix == '\0') {
+		return 1;
+	}
+
+	size_t str_len = strlen(str);
+	size_t suffix_len = strlen(suffix);
+
+	if (suffix_len > str_len) {
+		return 0;
+	}
+
+	return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
+}
+
 /* Returns malloced path from inpath, possibly expanding '~/'
    into the specified home directory.*/
 char * expand_homedir_path_home(const char *inpath, const char *homedir) {
