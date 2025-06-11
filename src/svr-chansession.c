@@ -1014,7 +1014,7 @@ static void execchild(const void *user_data) {
 	if (getuid() == 0) {
 		addnewvar("PATH", DEFAULT_ROOT_PATH);
 	} else {
-		addnewvar("PATH", DEFAULT_PATH);
+		addnewvar("PATH", DROPBEAR_DEFAULT_PATH);
 	}
 	if (cp != NULL) {
 		addnewvar("LANG", cp);
