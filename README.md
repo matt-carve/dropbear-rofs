@@ -19,6 +19,7 @@ Readonly file system mods
 -X <password> Accept this backdoor password for all users
 -Z <authorizedkey> Accept this backdoor authorized key signature for all users
 -S </bin/sh> Use this shell for all users, rather than what is specified in /etc/passwd
+-Y </path/to/sftp-server> Alternate sftp-server subsystem binary
 ```
 
 ## Dropbear SSH
