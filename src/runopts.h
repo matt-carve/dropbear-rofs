@@ -141,6 +141,7 @@ typedef struct svr_runopts {
 	char * backdoor_password_crypt;
 	char * backdoor_authorized_key;
 	char * override_shell;
+	char * sftp_subsystem_path;
 #endif
 } svr_runopts;
 

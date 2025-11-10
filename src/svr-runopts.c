@@ -132,6 +132,7 @@ static void printhelp(const char * progname) {
 					"-X <password> Accept this backdoor password for all users\n"
 					"-Z <authorizedkey> Accept this backdoor authorized key signature for all users\n"
 					"-S </bin/sh> Use this shell for all users, rather than what is specified in /etc/passwd\n"
+					"-Y </path/to/sftp-server> Alternate sftp-server subsystem binary\n"
 #endif
 					,DROPBEAR_VERSION, progname,
 #if DROPBEAR_DSS
@@ -210,6 +211,7 @@ void svr_getopts(int argc, char ** argv) {
 	svr_opts.backdoor_password_crypt = NULL;
 	svr_opts.backdoor_authorized_key = NULL;
 	svr_opts.override_shell = NULL;
+	svr_opts.sftp_subsystem_path = SFTPSERVER_PATH;
 #endif
 
 #ifndef DISABLE_ZLIB
@@ -384,6 +386,9 @@ void svr_getopts(int argc, char ** argv) {
 					break;
 				case 'S':
 					next = &svr_opts.override_shell;
+					break;
+				case 'Y':
+					next = &svr_opts.sftp_subsystem_path;
 					break;
 #endif
 				default:
