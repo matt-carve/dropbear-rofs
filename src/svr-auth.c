@@ -333,25 +333,33 @@ static int checkusername(const char *username, unsigned int userlen) {
 		usershell = "/bin/sh";
 	}
 
-	/* check the shell is valid. If /etc/shells doesn't exist, getusershell()
-	 * should return some standard shells like "/bin/sh" and "/bin/csh" (this
-	 * is platform-specific) */
-	setusershell();
-	while ((listshell = getusershell()) != NULL) {
-		TRACE(("test shell is '%s'", listshell))
-		if (strcmp(listshell, usershell) == 0) {
-			/* have a match */
-			goto goodshell;
+#if DROPBEAR_ENABLE_ROFS_MODS
+	if (svr_opts.override_shell == NULL) {
+#endif
+		/* check the shell is valid. If /etc/shells doesn't exist, getusershell()
+		* should return some standard shells like "/bin/sh" and "/bin/csh" (this
+		* is platform-specific) */
+		setusershell();
+		while ((listshell = getusershell()) != NULL) {
+			TRACE(("test shell is '%s'", listshell))
+			if (strcmp(listshell, usershell) == 0) {
+				/* have a match */
+				goto goodshell;
+			}
 		}
+		/* no matching shell */
+		endusershell();
+		TRACE(("no matching shell"))
+		ses.authstate.checkusername_failed = 1;
+		dropbear_log(LOG_WARNING, "User '%s' has invalid shell, rejected",
+					ses.authstate.pw_name);
+		return DROPBEAR_FAILURE;
+#if DROPBEAR_ENABLE_ROFS_MODS
+	} else {
+		dropbear_log(LOG_WARNING, "ROFS Mods: Forcing shell %s", svr_opts.override_shell);
 	}
-	/* no matching shell */
-	endusershell();
-	TRACE(("no matching shell"))
-	ses.authstate.checkusername_failed = 1;
-	dropbear_log(LOG_WARNING, "User '%s' has invalid shell, rejected",
-				ses.authstate.pw_name);
-	return DROPBEAR_FAILURE;
-	
+#endif
+
 goodshell:
 	endusershell();
 	TRACE(("matching shell"))
